@@ -127,14 +127,13 @@ function MatricularAluno({ materias, alunos, setAlunos, matriculas, setMatricula
       const materiasDoCurso = materias.filter(m => m.curso === curso);
       
       // Mapeia para as colunas exatas da sua tabela 'matricula'
+      // Mapeia EXATAMENTE para as colunas do seu banco SQL
       const novasMatriculas = materiasDoCurso.map((m) => ({
-        matriculaAluno: novoId,
-        nomeAluno: nome,
+        matricula: novoId, // Aqui é apenas 'matricula' (chave estrangeira do aluno)
         curso: m.curso,
         materia: m.sigla,
-        nomeMateria: m.nome,
         professor: m.professor,
-        perLetivo: parseInt(perLetivo),
+        perletivo: parseInt(perLetivo), // Tudo minúsculo como no banco
         resultado: 'PENDENTE'
       }));
 
