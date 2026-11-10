@@ -26,22 +26,22 @@ export default function App() {
   // Carrega os dados do Supabase assim que o app abre
   useEffect(() => {
     const fetchDados = async () => {
-    try {
-      // Busca os alunos do banco real
-      const { data: dataAlunos, error: errAlunos } = await supabase.from('alunos').select('*');
-      if (errAlunos) throw errAlunos;
-      setAlunos(dataAlunos || []);
+      try {
+        // Busca os alunos do banco real
+        const { data: dataAlunos, error: errAlunos } = await supabase.from('alunos').select('*');
+        if (errAlunos) throw errAlunos;
+        setAlunos(dataAlunos || []);
 
-      // Busca as matrículas do banco real
-      const { data: dataMatriculas, error: errMatriculas } = await supabase.from('matricula').select('*');
-      if (errMatriculas) throw errMatriculas;
-      setMatriculas(dataMatriculas || []);
-    } catch (error) {
-      console.error("Erro ao carregar dados do Supabase:", error.message);
-    }
-  };
+        // Busca as matrículas do banco real
+        const { data: dataMatriculas, error: errMatriculas } = await supabase.from('matricula').select('*');
+        if (errMatriculas) throw errMatriculas;
+        setMatriculas(dataMatriculas || []);
+      } catch (error) {
+        console.error("Erro ao carregar dados do Supabase:", error.message);
+      }
+    };
 
-  fetchDados();
+    fetchDados();
   }, []);
 
   return (
@@ -121,23 +121,23 @@ function MatricularAluno({ materias, alunos, setAlunos, matriculas, setMatricula
 
       if (erroAluno) throw erroAluno;
 
-      const novoId = alunoInserido.id; // ID numérico gerado pelo Supabase
+      // CORREÇÃO: No banco de dados a chave primária chama-se "matricula", não "id"
+      const novoId = alunoInserido.matricula; 
 
       // 2. Filtrar as matérias do curso escolhido
       const materiasDoCurso = materias.filter(m => m.curso === curso);
       
-      // Mapeia para as colunas exatas da sua tabela 'matricula'
-      // Mapeia EXATAMENTE para as colunas do seu banco SQL
+      // 3. Mapeia EXATAMENTE para as colunas do seu banco SQL
       const novasMatriculas = materiasDoCurso.map((m) => ({
-        matricula: novoId, // Aqui é apenas 'matricula' (chave estrangeira do aluno)
+        matricula: novoId, 
         curso: m.curso,
         materia: m.sigla,
         professor: m.professor,
-        perletivo: parseInt(perLetivo), // Tudo minúsculo como no banco
+        perletivo: parseInt(perLetivo), 
         resultado: 'PENDENTE'
       }));
 
-      // 3. Inserir as disciplinas associadas ao aluno na tabela 'matricula'
+      // 4. Inserir as disciplinas associadas ao aluno na tabela 'matricula'
       const { data: matriculasInseridas, error: erroMatricula } = await supabase
         .from('matricula')
         .insert(novasMatriculas)
@@ -233,11 +233,12 @@ function MatricularAluno({ materias, alunos, setAlunos, matriculas, setMatricula
 // --- TELA 2: LISTA DE ALUNOS ---
 function ListaAlunos({ alunos, matriculas }) {
   const alunosCompilados = alunos.map(aluno => {
-    const matriculasDoAluno = matriculas.filter(m => m.matriculaAluno === aluno.id);
+    // CORREÇÃO: Cruza a matrícula (não "id") para encontrar as disciplinas do aluno
+    const matriculasDoAluno = matriculas.filter(m => m.matricula === aluno.matricula);
     return {
       ...aluno,
       curso: matriculasDoAluno.length > 0 ? matriculasDoAluno[0].curso : 'N/A',
-      perLetivo: matriculasDoAluno.length > 0 ? matriculasDoAluno[0].perLetivo : 'N/A',
+      perLetivo: matriculasDoAluno.length > 0 ? matriculasDoAluno[0].perletivo : 'N/A',
       totalDisciplinas: matriculasDoAluno.length
     };
   });
@@ -260,7 +261,7 @@ function ListaAlunos({ alunos, matriculas }) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-sm text-slate-600 font-semibold uppercase tracking-wider">
-                  <th className="p-4">ID</th>
+                  <th className="p-4">Matrícula</th>
                   <th className="p-4">Nome</th>
                   <th className="p-4">Curso</th>
                   <th className="p-4">Ano Letivo</th>
@@ -269,8 +270,9 @@ function ListaAlunos({ alunos, matriculas }) {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {alunosCompilados.map(aluno => (
-                  <tr key={aluno.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 text-slate-500">{aluno.id}</td>
+                  <tr key={aluno.matricula} className="hover:bg-slate-50 transition-colors">
+                    {/* CORREÇÃO: Puxa .matricula em vez de .id */}
+                    <td className="p-4 text-slate-500">{aluno.matricula}</td>
                     <td className="p-4 font-medium text-slate-900">{aluno.nome}</td>
                     <td className="p-4 text-slate-600">{aluno.curso}</td>
                     <td className="p-4 text-slate-600">{aluno.perLetivo}</td>
