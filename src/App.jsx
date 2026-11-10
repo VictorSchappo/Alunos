@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { 
   Users, 
   UserPlus,
@@ -9,6 +9,7 @@ import {
   BookOpen,
   Pencil,
   Trash2,
+  Eye,
   X
 } from 'lucide-react';
 
@@ -296,12 +297,16 @@ function LancarNotas({ alunos, matriculas, setMatriculas }) {
 
     setSalvando(true);
     try {
-      const { error } = await supabase
+      const { data: atualizados, error } = await supabase
         .from('matricula')
         .update(atualizacao)
-        .match({ matricula: alunoId, materia: materiaSelecionada });
+        .match({ matricula: alunoId, materia: materiaSelecionada })
+        .select();
 
       if (error) throw error;
+      if (!atualizados || atualizados.length === 0) {
+        throw new Error('Nada foi gravado no banco. Verifique as políticas (RLS) de UPDATE da tabela "matricula" no Supabase.');
+      }
 
       setMatriculas(prev => prev.map(m => 
         (m.matricula === alunoId && m.materia === materiaSelecionada)
@@ -402,6 +407,16 @@ function calcularStatusGeral(matriculasDoAluno) {
 
 function ListaAlunos({ alunos, matriculas, setAlunos, setMatriculas }) {
   const [editando, setEditando] = useState(null); // { matricula, nome, perLetivo }
+  const [expandido, setExpandido] = useState(null); // matrícula do aluno com detalhes abertos
+
+  const fmt = (v, casas = 1) =>
+    v === null || v === undefined ? '-' : Number(v).toFixed(casas);
+
+  const corStatus = (status) =>
+    status === 'APROVADO' ? 'bg-green-100 text-green-800' :
+    status === 'REPROVADO' ? 'bg-red-100 text-red-800' :
+    status === 'EXAME' ? 'bg-orange-100 text-orange-800' :
+    'bg-slate-100 text-slate-800';
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState(null);
 
@@ -577,7 +592,8 @@ function ListaAlunos({ alunos, matriculas, setAlunos, setMatriculas }) {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {alunosCompilados.map(aluno => (
-                  <tr key={aluno.matricula} className="hover:bg-slate-50 transition-colors">
+                  <Fragment key={aluno.matricula}>
+                  <tr className="hover:bg-slate-50 transition-colors">
                     <td className="p-4 text-slate-500">{aluno.matricula}</td>
                     <td className="p-4 font-medium text-slate-900">{aluno.nome}</td>
                     <td className="p-4 text-slate-600">{aluno.curso} ({aluno.perLetivo})</td>
@@ -598,6 +614,14 @@ function ListaAlunos({ alunos, matriculas, setAlunos, setMatriculas }) {
                     </td>
                     <td className="p-4">
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          title="Ver notas"
+                          onClick={() => setExpandido(expandido === aluno.matricula ? null : aluno.matricula)}
+                          className={`p-2 rounded-lg hover:bg-slate-100 ${expandido === aluno.matricula ? 'text-slate-900 bg-slate-100' : 'text-slate-500'}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button
                           type="button"
                           title="Editar"
@@ -621,6 +645,49 @@ function ListaAlunos({ alunos, matriculas, setAlunos, setMatriculas }) {
                       </div>
                     </td>
                   </tr>
+                  {expandido === aluno.matricula && (
+                    <tr className="bg-slate-50">
+                      <td colSpan={6} className="p-4">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs uppercase text-slate-500">
+                              <th className="py-2 text-left">Disciplina</th>
+                              <th className="py-2 text-center">N1</th>
+                              <th className="py-2 text-center">N2</th>
+                              <th className="py-2 text-center">N3</th>
+                              <th className="py-2 text-center">N4</th>
+                              <th className="py-2 text-center">Média</th>
+                              <th className="py-2 text-center">Faltas (h)</th>
+                              <th className="py-2 text-center">Freq.</th>
+                              <th className="py-2 text-center">Resultado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {matriculas
+                              .filter(m => m.matricula === aluno.matricula)
+                              .map(m => (
+                                <tr key={m.materia} className="border-t border-slate-200">
+                                  <td className="py-2 font-medium text-slate-800">{m.materia}</td>
+                                  <td className="py-2 text-center">{fmt(m.n1)}</td>
+                                  <td className="py-2 text-center">{fmt(m.n2)}</td>
+                                  <td className="py-2 text-center">{fmt(m.n3)}</td>
+                                  <td className="py-2 text-center">{fmt(m.n4)}</td>
+                                  <td className="py-2 text-center font-semibold">{fmt(m.media)}</td>
+                                  <td className="py-2 text-center">{m.totalfaltas ?? '-'}</td>
+                                  <td className="py-2 text-center">{m.percfreq === null || m.percfreq === undefined ? '-' : `${fmt(m.percfreq, 0)}%`}</td>
+                                  <td className="py-2 text-center">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${corStatus(m.resultado)}`}>
+                                      {m.resultado || 'PENDENTE'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
