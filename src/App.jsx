@@ -25,10 +25,7 @@ export default function App() {
 
   // Carrega os dados do Supabase assim que o app abre
   useEffect(() => {
-    fetchDados();
-  }, []);
-
-  const fetchDados = async () => {
+    const fetchDados = async () => {
     try {
       // Busca os alunos do banco real
       const { data: dataAlunos, error: errAlunos } = await supabase.from('alunos').select('*');
@@ -43,6 +40,9 @@ export default function App() {
       console.error("Erro ao carregar dados do Supabase:", error.message);
     }
   };
+
+  fetchDados();
+  }, []);
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
